@@ -54,6 +54,19 @@ Requires 4 parameters: left, bottom, right, top.
 The CLI needs 4 parameters to be provided to work: --left, --bottom, --right, --top.  
 Use ./run.sh --help for more information.
 
+## Docker runtime
+To run the MBTiles generator in an even simpler environment, simply execute:
+```sh
+docker run -p 2999:2999 -e "APP_MODE=server" -e "TILESERVER_TYPE=osm" -e "TILESERVER_ENDPOINT=http://mytileserver.org/{z}/{x}/{y}.png" -e "APP_TIMEOUT=300" -e "APP_MINZOOM=3" -e "APP_MAXZOOM=16" mapsquare/mbtiles-generator
+```
+ENV variables:  
+ * APP_MODE: the execution mode. Valid values: server, command. server will launch a server on port 2999, command creates the requested MBTiles and outputs in the container /opt/app/data folder.
+ * TILESERVER_TYPE: the tile provider. Valid values: osm, bing.    
+ * TILESERVER_ENDPOINT: depends on the provider. see app/mapper files and examples.
+ * APP_TIMEOUT: timeout in seconds for server mode.
+ * APP_MINZOOM: minzoom to compute the MBTiles.
+ * APP_MAXZOOM: maxzoom to compute the MBTiles.
+
 ## License
 
 Copyright 2015 eBusiness Information
