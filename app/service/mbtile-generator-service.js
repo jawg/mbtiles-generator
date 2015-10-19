@@ -20,6 +20,7 @@ var ProjectionUtils = require('../util/projection-utils');
 // Classes
 var Tile = require('../model/tile');
 var Step = require('step');
+var HashMap = require('hashmap');
 // Logging
 var debug = require('debug')('mbt:service:mbtile-generator-service');
 // Imports
@@ -60,7 +61,10 @@ var getMBTile = function (bounds) {
     var db = new sqlite3.Database(dbFile);
 
     fs.readFile('conf/schema.sql', 'utf8', function (err, data) {
-      if (err) throw err;
+      if (err) {
+        console.error('Error while loading schema: ' + err);
+        throw err;
+      }
       createTables(db, data)
           .then(function () {
             // required MetaData for mbtiles spec
@@ -81,13 +85,15 @@ var getMBTile = function (bounds) {
           })
           .then(function () {
             // All tiles have been stored. Close db.
-            db.close();
-            console.log('MBTile computed successfully. File output is available in ' + dbFile);
-            
-            // Open file, send binary data to client, and remove file.
-            fs.readFile(dbFile, function (err, data) {
-              resolve(data);
+            db.close(function () {
+              console.log('MBTile computed successfully. File output is available in ' + dbFile);
+
+              // Open file, send binary data to client, and remove file.
+              fs.readFile(dbFile, function (err, data) {
+                resolve(data);
+              });
             });
+            
           })
     });
   });
@@ -262,8 +268,14 @@ var fetchTile = function (t, attempts, callback) {
       console.error('Received error from server' + JSON.stringify(error));
       // Will retry 3 times if error occured (maybe tile is not ready yet), fail beyond.
       if (attempts < 3) {
-        fetchTile(t, store, stmt, attempts++);
+        fetchTile(t, attempts++, callback);
       }
+    }
+  }).on('error', function(err) {
+    console.error('Received error from server' + JSON.stringify(err));
+    // Will retry 3 times if error occured (maybe tile is not ready yet), fail beyond.
+    if (attempts < 3) {
+      fetchTile(t, attempts++, callback);
     }
   });
 };

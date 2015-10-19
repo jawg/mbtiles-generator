@@ -59,7 +59,9 @@ server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
 server.setTimeout(Conf.timeout);
-
+  if (cluster.isMaster) {
+    console.log('Application is running, connected to endpoint ' + Conf.tileServer.endpoint + '. Pretty cool huh?');
+  } 
 }
 
 
@@ -107,7 +109,8 @@ function onError(error) {
       process.exit(1);
       break;
     default:
-      throw error;
+      console.error('Error occured: ' + error);
+      //throw error;
   }
 }
 

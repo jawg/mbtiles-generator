@@ -37,7 +37,7 @@ var getTileUrl = function (t) {
  * @returns {string}
  */
 var getExtension = function () {
-  return 'jpg';
+  return 'jpeg';
 };
 
 /**

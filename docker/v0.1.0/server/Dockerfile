@@ -11,16 +11,15 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
-FROM node:4.2.1-slim
+
+FROM mapsquare/mbtiles-generator-base:0.1.0
+
+# The difference between this mbtiles-generator and the base image, is that this one allows an easy bootstrap of the mbtiles-generator server.
+# That means user only needs to provide env variables, which will configure the docker at runtime.
 
 MAINTAINER Loic Ortola <lortola@ebusinessinformation.fr>
-RUN apt-get update && apt-get install -y git
-RUN mkdir /opt/app
-WORKDIR /tmp
-RUN git clone https://github.com/mapsquare/mbtiles-generator.git \
-  && mv mbtiles-generator/app/* /opt/app 
-WORKDIR /opt/app
-RUN npm install
+
+# Add template conf and app script
 ADD *.template ./conf/
 ADD app.sh ./
 
@@ -32,9 +31,6 @@ ENV APP_MINZOOM=1
 ENV APP_MAXZOOM=17
 # Only for server mode
 ENV APP_TIMEOUT=300
-
-# Port exposed
-EXPOSE 2999
 
 # Launch script
 CMD ./app.sh
