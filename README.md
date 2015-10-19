@@ -19,21 +19,29 @@ A project designed to provide a simple API for generating MBTiles for a bounding
 ## Configuration
 To configure your application, edit the conf/Conf.js file.  
 The file may look like this
-``javascript
+```javascript
 module.exports = {
   "tileServer": {"type": "...", "endpoint": "..."}, // Tile server specs
   "minZoom": 5, // Minimum zoom level to compute for an mbtile.
   "maxZoom": 17, // Maximum zoom level to compute for an mbtile
   "timeout": 300000 // Http Timeout in milliseconds (Server-mode only)
 };
-``
+```
 Two tile providers are currently supported :  
 **OpenStreetMap**:
 In this case, provide the following tileServer (replace your endpoint):  
-``"tileServer": {"type": "osm", "endpoint": "http://your-tileserver/{z}/{x}/{y}.png"},``
+```javascript
+"tileServer": {"type": "osm", "endpoint": "http://your-tileserver/{z}/{x}/{y}.png"}
+```
 **Bing**:
 In this case, provide the following tileServer (replace your style and ApiKey):  
-``"tileServer": {"type": "bing", "endpoint": "http://dev.virtualearth.net/REST/V1/Imagery/Metadata/Aerial?mapVersion=v1&output=json&key=myApiKey"},``
+```javascript
+"tileServer": {
+"type": "bing", 
+"endpoint": "http://dev.virtualearth.net/REST/V1/Imagery/Metadata/Aerial?mapVersion=v1&output=json&key=myApiKey",
+"culture": "fr"
+}
+```
 
 ## Server API
 The server runs on port 2999 and listens to one endpoint:
