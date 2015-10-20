@@ -57,7 +57,7 @@ Will synchronously prepare your mbtiles file and return it in the http response 
 ### Asynchronous endpoints  
 **[GET]**``/mbtiles/async``:  
 Requires 4 parameters: left, bottom, right, top.  
-Returns: a string token  
+Returns: a json {"token": "your-token"}  
 **Example**: ``http://localhost:2999/mbtiles/async?left=2.31760654&bottom=48.8243829&right=2.358607&top=48.8513625``  
 Will asynchronously launch your mbtiles computation and return a unique token.  
 

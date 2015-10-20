@@ -58,7 +58,7 @@ router.get('/mbtiles/async', function (req, res, next) {
   // Return token
   var token = mbTilesGeneratorService.requestMBTiles(bounds);
   res.set('Content-Type', 'application/json');
-  res.send(token);
+  res.send({"token": token});
 });
 
 /**
