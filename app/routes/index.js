@@ -20,20 +20,21 @@ var Bounds = require('../model/bounds');
 var debug = require('debug')('mbt:server');
 // Imports
 var express = require('express');
-var mbTileGeneratorService = require('../service/mbtile-generator-service');
-
+var mbTilesGeneratorService = require('../service/mbtiles-generator-service');
+var mbTilesStatusService = require('../service/mbtiles-status-service');
 var router = express.Router();
 
 /**
  * Main route
  */
-router.get('/mbtile', function (req, res, next) {
+router.get('/mbtiles', function (req, res, next) {
   var left = req.query.left;
   var bottom = req.query.bottom;
   var right = req.query.right;
   var top = req.query.top;
   var bounds = new Bounds(left, bottom, right, top);
-  mbTileGeneratorService.getMBTile(bounds)
+  // Wait for promise to be resolved before returning response (synchronous behaviour)
+  mbTilesGeneratorService.requestMBTilesSync(bounds)
       .then(function (result) {
         var content = new Buffer(result, 'binary');
         res.set('Content-Type', 'application/x-sqlite3');
@@ -43,6 +44,54 @@ router.get('/mbtile', function (req, res, next) {
       }, function (result) {
         res.send(result.message);
       });
+});
+
+/**
+ * Main route
+ */
+router.get('/mbtiles/async', function (req, res, next) {
+  var left = req.query.left;
+  var bottom = req.query.bottom;
+  var right = req.query.right;
+  var top = req.query.top;
+  var bounds = new Bounds(left, bottom, right, top);
+  // Return token
+  var token = mbTilesGeneratorService.requestMBTiles(bounds);
+  res.set('Content-Type', 'application/json');
+  res.send(token);
+});
+
+/**
+ * Main route
+ */
+router.get('/mbtiles/status/:token', function (req, res, next) {
+  var token = req.params.token;
+  var status = mbTilesStatusService.get(token);
+  res.set('Content-Type', 'application/json');
+  // If generating, set to unavailable
+  if (status.status === "generating") {
+    res.statusCode = 503;
+  }
+  res.send(status);
+});
+
+/**
+ * Main route
+ */
+router.get('/mbtiles/download/:token', function (req, res, next) {
+  var token = req.params.token;
+  mbTilesGeneratorService.getMBTiles(token, function(result) {
+    if (!result) {
+      res.statusCode = 503;
+      res.send();
+      return;
+    } 
+    var content = new Buffer(result, 'binary');
+    res.set('Content-Type', 'application/x-sqlite3');
+    res.set('Content-Disposition', 'inline; filename="mapsquare.mbtiles"');
+    res.send(content);
+    
+  });
 });
 
 // Exports

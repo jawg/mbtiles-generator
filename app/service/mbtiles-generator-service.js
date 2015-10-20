@@ -20,17 +20,19 @@ var ProjectionUtils = require('../util/projection-utils');
 // Classes
 var Tile = require('../model/tile');
 var Step = require('step');
-var HashMap = require('hashmap');
 // Logging
 var debug = require('debug')('mbt:service:mbtile-generator-service');
 // Imports
 var fs = require('fs');
+var path = require('path');
 var sqlite3 = require('sqlite3').verbose();
 var http = require('http');
+var uuid = require('node-uuid');
 var mapper = getMapper(Conf.tileServer.type);
+var mbTilesStatusService = require('./mbtiles-status-service');
 
 // Number of requests for each step set.
-var STEP_REQUEST_SIZE = 500;
+var STEP_REQUEST_SIZE = 96;
 
 
 /**
@@ -46,26 +48,52 @@ function getMapper(type) {
   throw new Error('Wrong tile mapper specified. Please specify an appropriate mapper type in Conf');
 }
 
+var initMBTilesRequest = function() {
+  // Create temporary sqlite DB file
+  var token = uuid.v4();
+  var file = 'data/' + token + '.sqlite';
+  var db = new sqlite3.Database(file);
+  mbTilesStatusService.create(token);
+  return {"db": db, "token": token, "file": file};
+};
+
+/**
+ * Returns the future token to retrieve MBTiles once ready.
+ * @param bounds the MBTiles bounds
+ * @returns a string value
+ */
+var requestMBTiles = function (bounds) {
+  var request = initMBTilesRequest();
+  processMBTiles(request, bounds);
+  return request.token;
+};
+
+/**
+ * Returns a promise whose resolution will return an mbtile with the requested bounds.
+ * @param bounds
+ * @returns {Promise} the MBTile
+ */
+var requestMBTilesSync = function (bounds) {
+  var request = initMBTilesRequest()
+  return processMBTiles(request, bounds);
+};
 
 /**
  * Returns a promise whose resolution will return an mbtile with the requested bounds.
  * @param bounds
  * @returns {Promise} the MBTile bounds
  */
-var getMBTile = function (bounds) {
+var processMBTiles = function (request, bounds) {
+  
   return new Promise(function (resolve, reject) {
     console.log("Processing MBTiles for bounds:" + JSON.stringify(bounds));
-    // Create temporary sqlite DB file
-    var d = new Date();
-    var dbFile = 'data/' + d.getTime() + '.sqlite';
-    var db = new sqlite3.Database(dbFile);
-
+    
     fs.readFile('conf/schema.sql', 'utf8', function (err, data) {
       if (err) {
         console.error('Error while loading schema: ' + err);
         throw err;
       }
-      createTables(db, data)
+      createTables(request.db, data)
           .then(function () {
             // required MetaData for mbtiles spec
             var metaData = {
@@ -77,23 +105,24 @@ var getMBTile = function (bounds) {
               "bounds": bounds.left + ',' + bounds.bottom + ',' + bounds.right + ',' + bounds.top
             };
             // Insert metadata into db
-            return insertMetadata(db, metaData);
+            return insertMetadata(request.db, metaData);
           })
           .then(function () {
             // Fetch then store tiles
-            return fetchAndStoreTiles(bounds, db);
+            return fetchAndStoreTiles(request.token, bounds, request.db);
           })
           .then(function () {
             // All tiles have been stored. Close db.
-            db.close(function () {
-              console.log('MBTile computed successfully. File output is available in ' + dbFile);
-
+            request.db.close(function () {
+              console.log('MBTile computed successfully. File output is available in ' + request.file);
+              // Persist tile state
+              mbTilesStatusService.update(request.token, "done", 100);
               // Open file, send binary data to client, and remove file.
-              fs.readFile(dbFile, function (err, data) {
+              fs.readFile(request.file, function (err, data) {
                 resolve(data);
               });
             });
-            
+
           })
     });
   });
@@ -138,7 +167,7 @@ var insertMetadata = function (db, metaData) {
  * Insert a tile using an sqlite statement
  * @param stmt the statement
  * @param tile the tile metadata
- * @param data the tile blob 
+ * @param data the tile blob
  * @param callback once it is done
  */
 var insertTile = function (stmt, tile, data, callback) {
@@ -153,20 +182,20 @@ var insertTile = function (stmt, tile, data, callback) {
  * @param db the database
  * @returns {Promise} a promise resolved when finished.
  */
-var fetchAndStoreTiles = function (bounds, db) {
+var fetchAndStoreTiles = function (token, bounds, db) {
   return new Promise(function (resolve, reject) {
     // List tiles
     var tiles = listTiles(bounds);
     console.log(tiles.length + " tiles to process.");
-    
+
     // Prepare steps
     var steps = [];
-    
-    for (var s = 0; s < Math.floor(1 + tiles.length / STEP_REQUEST_SIZE); s++) {
+    var stepCount = Math.floor(1 + tiles.length / STEP_REQUEST_SIZE);
+    for (var s = 0; s < stepCount; s++) {
       var stmt = db.prepare('INSERT INTO tiles VALUES (?, ?, ?, ?)');
       // Use closures to split the tile fetch into sets, to prevent overflows (10000s of http requests at the same time).
       steps.push(fetchTilesFunction(tiles.slice(s * STEP_REQUEST_SIZE, Math.min((s + 1) * STEP_REQUEST_SIZE, tiles.length)), stmt));
-      steps.push(closeStatementFunction(stmt));
+      steps.push(finalizeStepFunction(stmt, token, s, stepCount));
     }
     // Last step is resolution
     steps.push(function () {
@@ -198,7 +227,7 @@ var listTiles = function (bounds) {
     if (coords1[1] === coords2[1]) {
       coords2[1] += 1;
     }
-    
+
     for (var x = Math.min(coords1[0], coords2[0]); x < Math.max(coords1[0], coords2[0]); x++) {
       for (var y = Math.min(coords1[1], coords2[1]); y < Math.max(coords1[1], coords2[1]); y++) {
         var t = new Tile(x, y, z, mapper.getExtension());
@@ -231,12 +260,16 @@ var fetchTilesFunction = function (tiles, stmt) {
 };
 
 /**
- * Closure for statement finalization
+ * Closure for step finalization
  * @param stmt the statement to close
+ * @param token the current token
+ * @param s the current step
+ * @param stepCount the total number of steps 
  * @returns {Function} the function
  */
-var closeStatementFunction = function (stmt) {
+var finalizeStepFunction = function (stmt, token, s, stepCount) {
   return function () {
+    mbTilesStatusService.update(token, "generating", Math.floor((s + 1) * 100 / stepCount));
     stmt.finalize();
     this();
   }
@@ -271,7 +304,7 @@ var fetchTile = function (t, attempts, callback) {
         fetchTile(t, attempts++, callback);
       }
     }
-  }).on('error', function(err) {
+  }).on('error', function (err) {
     console.error('Received error from server' + JSON.stringify(err));
     // Will retry 3 times if error occured (maybe tile is not ready yet), fail beyond.
     if (attempts < 3) {
@@ -280,12 +313,59 @@ var fetchTile = function (t, attempts, callback) {
   });
 };
 
+
+/**
+ * Retrieve MBTiles data for current token.
+ * @param token
+ */
+var getMBTiles = function (token, callback) {
+  var status = mbTilesStatusService.get(token);
+  // Return if not finished
+  if (!status || status.status === "generating") {
+    callback();
+    return;
+  }
+  
+  var dbFile = 'data/' + token + '.sqlite';
+
+  // Open file, send binary data to client.
+  fs.readFile(dbFile, function (err, data) {
+    callback(data);
+    // Tile has been downloaded. Notify
+    mbTilesStatusService.update(token, "downloaded", 100);
+  });
+};
+
+/**
+ * Remove all MBTiles which have no reference in the app or which have been downloaded already.
+ */
+var removeOldMBTiles = function () {
+  fs.readdir('data', function (err, files) {
+    for (var i in files) {
+      var token = path.basename(files[i], '.sqlite');
+      var status = mbTilesStatusService.get(token);
+      if (!status || status.status === "downloaded") {
+        fs.unlink('data/' + token + '.sqlite', function(err) {
+          debug('Deleted file. Error? ' + err);
+        });
+      }
+    }
+    console.log('MBTiles Cleaning in progress.');
+  });
+};
+
 // Init
-fs.mkdir('data', function(err) {
+fs.mkdir('data', function (err) {
   if (err && err.code != 'EEXIST') {
     console.error(err);
   }
 });
 
+
 // Exports
-module.exports.getMBTile = getMBTile;
+module.exports = {
+  requestMBTilesSync: requestMBTilesSync,
+  requestMBTiles: requestMBTiles,
+  getMBTiles: getMBTiles,
+  removeOldMBTiles: removeOldMBTiles
+};

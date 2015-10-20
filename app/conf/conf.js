@@ -17,6 +17,6 @@
 module.exports = {
   "tileServer": {"type": "osm", "endpoint": "http://a.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png"},
   "minZoom": 4,
-  "maxZoom": 19,
+  "maxZoom": 17,
   "timeout": 500000 // Timeout in milliseconds
 };

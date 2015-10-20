@@ -27,7 +27,7 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var routes = require('./routes/index');
 var minimist = require('minimist');
-var mbTileGeneratorService = require('./service/mbtile-generator-service');
+var mbTilesGeneratorService = require('./service/mbtiles-generator-service');
 
 var app = express();
 
@@ -85,7 +85,7 @@ if (process.argv.length > 2) {
   var bounds = new Bounds(left, bottom, right, top);
   // Dirty wait for modules to init.
   setTimeout(function() {
-    mbTileGeneratorService.getMBTile(bounds)
+    mbTilesGeneratorService.processMBTile(bounds)
         .then(function () {
           process.exit();
         }, function (result) {
@@ -95,6 +95,5 @@ if (process.argv.length > 2) {
   }, 1000);
 
 }
-
 
 module.exports = app;

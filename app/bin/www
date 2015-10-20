@@ -20,6 +20,13 @@ var debug = require('debug')('mbt:server');
 var http = require('http');
 var cluster = require('cluster');
 var numCPUs = require('os').cpus().length;
+var mbTilesGeneratorService = require('../service/mbtiles-generator-service');
+var EventEmitter = require('events');
+var emitter = new EventEmitter();
+
+var workers = [];
+
+var FOUR_HOURS = 4 * 3600 * 1000;
 
 /**
  * Get port from environment and store in Express.
@@ -30,38 +37,57 @@ var env = process.env.NODE_ENV || 'development';
 app.set('port', port);
 app.set('env', env);
 
-   
+
 if (cluster.isMaster) {
- // Fork workers.
- for (var i = 0; i < numCPUs; i++) {
-   cluster.fork();
- }
+  
+  // Fork workers.
+  for (var i = 0; i < numCPUs; i++) {
+    var worker = cluster.fork();
+    workers[i] = worker;
+    // Listen to messages on workers
+    worker.on('message', function (msg) {
+      // MBTiles status dispatch to workers
+      if (msg.tag === 'mbtiles-status-broadcast') {
+        debug('Received message from master: ' + JSON.stringify(msg));
+        workers.forEach(function (w) {
+          msg.tag = 'mbtiles-status-push';
+          w.send(msg);
+        });
+      }
+    });
+  }
 
-cluster.on('listening', function(worker, address) {
-  debug('PID(' + worker.process.pid + ') Cluster worker now connected');
-});
+  // We are in server-mode. Therefore, we will clear the data directory every 24 hours
+  setInterval(function() {
+    mbTilesGeneratorService.removeOldMBTiles();
+  }, FOUR_HOURS);
 
-cluster.on('exit', function(worker, code, signal) {
+  cluster.on('listening', function (worker, address) {
+    debug('PID(' + worker.process.pid + ') Cluster worker now connected');
+  });
+
+  cluster.on('exit', function (worker, code, signal) {
     console.log('worker ' + worker.process.pid + ' died');
   });
+
+  console.log('Application is running, connected to endpoint ' + Conf.tileServer.endpoint + '. Pretty cool huh?');
+
 } else {
-/**
- * Create HTTP server.
- */
+  /**
+   * Create HTTP server.
+   */
 
-var server = http.createServer(app);
+  var server = http.createServer(app);
 
-/**
- * Listen on provided port, on all network interfaces.
- */
+  /**
+   * Listen on provided port, on all network interfaces.
+   */
 
-server.listen(port);
-server.on('error', onError);
-server.on('listening', onListening);
-server.setTimeout(Conf.timeout);
-  if (cluster.isMaster) {
-    console.log('Application is running, connected to endpoint ' + Conf.tileServer.endpoint + '. Pretty cool huh?');
-  } 
+  server.listen(port);
+  server.on('error', onError);
+  server.on('listening', onListening);
+  server.setTimeout(Conf.timeout);
+
 }
 
 
@@ -95,8 +121,8 @@ function onError(error) {
   }
 
   var bind = typeof port === 'string'
-    ? 'Pipe ' + port
-    : 'Port ' + port;
+      ? 'Pipe ' + port
+      : 'Port ' + port;
 
   // handle specific listen errors with friendly messages
   switch (error.code) {
@@ -110,7 +136,7 @@ function onError(error) {
       break;
     default:
       console.error('Error occured: ' + error);
-      //throw error;
+    //throw error;
   }
 }
 
@@ -119,5 +145,5 @@ function onError(error) {
  */
 
 function onListening() {
-  
+
 }
