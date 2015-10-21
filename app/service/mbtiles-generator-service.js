@@ -228,8 +228,8 @@ var listTiles = function (bounds) {
       coords2[1] += 1;
     }
 
-    for (var x = Math.min(coords1[0], coords2[0]); x < Math.max(coords1[0], coords2[0]); x++) {
-      for (var y = Math.min(coords1[1], coords2[1]); y < Math.max(coords1[1], coords2[1]); y++) {
+    for (var x = Math.min(coords1[0], coords2[0]); x <= Math.max(coords1[0], coords2[0]); x++) {
+      for (var y = Math.min(coords1[1], coords2[1]); y <= Math.max(coords1[1], coords2[1]); y++) {
         var t = new Tile(x, y, z, mapper.getExtension());
         tiles.push(t);
       }
