@@ -21,6 +21,7 @@ var http = require('http');
 var cluster = require('cluster');
 var numCPUs = require('os').cpus().length;
 var mbTilesGeneratorService = require('../service/mbtiles-generator-service');
+var mbTilesStatusService = require('../service/mbtiles-status-service');
 var EventEmitter = require('events');
 var emitter = new EventEmitter();
 
@@ -49,10 +50,11 @@ if (cluster.isMaster) {
       // MBTiles status dispatch to workers
       if (msg.tag === 'mbtiles-status-broadcast') {
         debug('Received message from master: ' + JSON.stringify(msg));
+        msg.tag = 'mbtiles-status-push';
         workers.forEach(function (w) {
-          msg.tag = 'mbtiles-status-push';
           w.send(msg);
         });
+        mbTilesStatusService.receiveUpdate(msg);
       }
     });
   }

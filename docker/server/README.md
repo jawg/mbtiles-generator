@@ -1,7 +1,7 @@
 ## Base Docker image for MBTiles-Generator
 
 ### Supported tags and respective `Dockerfile` links
-* [`0.1.0`, `latest` (v0.1.0/Dockerfile)](https://github.com/mapsquare/mbtiles-generator/tree/master/docker/v0.1.0/server)
+* [`0.2.0`, `latest` (Dockerfile)](https://github.com/mapsquare/mbtiles-generator/tree/master/docker/server)
 
 ### What are MBTiles ?
 MBTiles is a specification allowing to store image map tiles into an sqlite database.

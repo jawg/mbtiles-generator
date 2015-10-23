@@ -18,5 +18,6 @@ module.exports = {
   "tileServer": {"type": "${tileServer.type}", "endpoint": "${tileServer.endpoint}"},
   "minZoom": ${minZoom},
   "maxZoom": ${maxZoom}, 
-  "timeout": ${timeout}000 // Timeout in milliseconds
+  "timeout": ${timeout}000, // Timeout in milliseconds
+  "maxArea": ${maxArea},
 };

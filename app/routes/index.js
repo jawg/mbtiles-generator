@@ -14,6 +14,9 @@
  * Created by Loïc Ortola on 16/10/2015.
  * Routes
  */
+// Conf & Utils
+var Conf = require('../conf/conf');
+var ProjectionUtils = require('../util/projection-utils');
 // Classes
 var Bounds = require('../model/bounds');
 // Logging
@@ -33,6 +36,28 @@ router.get('/mbtiles', function (req, res, next) {
   var right = req.query.right;
   var top = req.query.top;
   var bounds = new Bounds(left, bottom, right, top);
+
+  // Validate Bounds
+  if (!ProjectionUtils.isValidBounds(bounds)) {
+    res.set('Content-Type', 'application/json');
+    // Bad request
+    res.statusCode = 400;
+    res.send({"message": 'Wrong bounds provided. Please provide a valid set of bounds to complete request.'});
+    return;
+  }
+
+  // Validate Request Area
+  var requestArea = ProjectionUtils.boundsToArea(bounds);
+  if (Conf.maxArea && Conf.maxArea > 0 && requestArea > Conf.maxArea) {
+    var msg = 'Requested area (' + Math.floor(requestArea) + ' km2) is superior to the application maxArea (' + Conf.maxArea + ' km2)';
+    console.error(msg);
+    res.set('Content-Type', 'application/json');
+    // Bad request
+    res.statusCode = 400;
+    res.send({"message": msg});
+    return;
+  }
+  
   // Wait for promise to be resolved before returning response (synchronous behaviour)
   mbTilesGeneratorService.requestMBTilesSync(bounds)
       .then(function (result) {
@@ -55,6 +80,28 @@ router.get('/mbtiles/async', function (req, res, next) {
   var right = req.query.right;
   var top = req.query.top;
   var bounds = new Bounds(left, bottom, right, top);
+  
+  // Validate Bounds
+  if (!ProjectionUtils.isValidBounds(bounds)) {
+    res.set('Content-Type', 'application/json');
+    // Bad request
+    res.statusCode = 400;
+    res.send({"message": 'Wrong bounds provided. Please provide a valid set of bounds to complete request.'});
+    return;
+  }
+  
+  // Validate Request Area
+  var requestArea = ProjectionUtils.boundsToArea(bounds);
+  if (Conf.maxArea && Conf.maxArea > 0 && requestArea > Conf.maxArea) {
+    var msg = 'Requested area (' + Math.floor(requestArea) + ' km2) is superior to the application maxArea (' + Conf.maxArea + ' km2)';
+    console.error(msg);
+    res.set('Content-Type', 'application/json');
+    // Bad request
+    res.statusCode = 400;
+    res.send({"message": msg});
+    return;
+  }
+  
   // Return token
   var token = mbTilesGeneratorService.requestMBTiles(bounds);
   res.set('Content-Type', 'application/json');
@@ -68,11 +115,15 @@ router.get('/mbtiles/status/:token', function (req, res, next) {
   var token = req.params.token;
   var status = mbTilesStatusService.get(token);
   res.set('Content-Type', 'application/json');
-  // If generating, set to unavailable
-  if (status.status === "generating") {
-    res.statusCode = 503;
+  if (status && status.status === "generating") {
+    // If generating, set to 202-ACCEPTED
+    res.statusCode = 202;
+    res.send(status);
+  } else {
+    // Else, not found.
+    res.statusCode = 404;
+    res.send({"message": "Token does not exist. please refer to a valid mbtiles token."});
   }
-  res.send(status);
 });
 
 /**
@@ -82,10 +133,11 @@ router.get('/mbtiles/download/:token', function (req, res, next) {
   var token = req.params.token;
   mbTilesGeneratorService.getMBTiles(token, function(result) {
     if (!result) {
-      res.statusCode = 503;
+      // Not ready yet.
+      res.statusCode = 202;
       res.send();
       return;
-    } 
+    }
     var content = new Buffer(result, 'binary');
     res.set('Content-Type', 'application/x-sqlite3');
     res.set('Content-Disposition', 'inline; filename="mapsquare.mbtiles"');

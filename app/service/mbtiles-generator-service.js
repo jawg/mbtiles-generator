@@ -269,7 +269,7 @@ var fetchTilesFunction = function (tiles, stmt) {
  */
 var finalizeStepFunction = function (stmt, token, s, stepCount) {
   return function () {
-    mbTilesStatusService.update(token, "generating", Math.floor((s + 1) * 100 / stepCount));
+    mbTilesStatusService.update(token, "generating", Math.floor((s + 1) * 100 / (stepCount + 1)));
     stmt.finalize();
     this();
   }

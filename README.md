@@ -24,7 +24,8 @@ module.exports = {
   "tileServer": {"type": "...", "endpoint": "..."}, // Tile server specs
   "minZoom": 5, // Minimum zoom level to compute for an mbtile.
   "maxZoom": 17, // Maximum zoom level to compute for an mbtile
-  "timeout": 300000 // Http Timeout in milliseconds (Server-mode only)
+  "timeout": 300000, // Http Timeout in milliseconds (Server-mode only)
+  "maxArea": 16, // Maximum MBTiles covering area in square kilometers. Will reject all oversized requests. 0 to disable.
 };
 ```
 Two tile providers are currently supported :  
@@ -82,14 +83,15 @@ Use ./run.sh --help for more information.
 To run the MBTiles generator in an even simpler environment, simply execute:  
 
 ```sh
-docker run -d -p 2999:2999 -e "APP_MODE=server" -e "TILESERVER_TYPE=osm" -e "TILESERVER_ENDPOINT=http://mytileserver.org/{z}/{x}/{y}.png" -e "APP_TIMEOUT=300" -e "APP_MINZOOM=3" -e "APP_MAXZOOM=16" mapsquare/mbtiles-generator-server
+docker run -d -p 2999:2999 -e "APP_MODE=server" -e "TILESERVER_TYPE=osm" -e "TILESERVER_ENDPOINT=http://mytileserver.org/{z}/{x}/{y}.png" -e "APP_TIMEOUT=300" -e "APP_MINZOOM=3" -e "APP_MAXZOOM=17" -e "APP_MAXAREA=16" mapsquare/mbtiles-generator-server
 ```
 
 ENV variables:  
- * APP_MODE: the execution mode. Valid values: server, command. server will launch a server on port 2999, command creates the requested MBTiles and outputs in the container /opt/app/data folder.
+ * APP_MODE: the execution mode. Valid values: server, command. *server* will launch a server on port 2999, *command* creates the requested MBTiles and outputs in the container /opt/app/data folder.
  * TILESERVER_TYPE: the tile provider. Valid values: osm, bing.    
  * TILESERVER_ENDPOINT: depends on the provider. see app/mapper files and examples.
  * APP_TIMEOUT: timeout in seconds for server mode.
+ * APP_MAXAREA: max supported area in square kilometers for an MBTiles file.
  * APP_MINZOOM: minzoom to compute the MBTiles.
  * APP_MAXZOOM: maxzoom to compute the MBTiles.
 
