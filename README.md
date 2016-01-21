@@ -33,6 +33,10 @@ Two tile providers are currently supported :
 In this case, provide the following tileServer (replace your endpoint):  
 ```javascript
 "tileServer": {"type": "osm", "endpoint": "http://your-tileserver/{z}/{x}/{y}.png"}
+```  
+Layers are also supported, using them as:  
+```javascript
+"tileServer": {"type": "osm", "endpoint": "http://your-tileserver/{layer}/{z}/{x}/{y}.png"}
 ```
 **Bing**:
 In this case, provide the following tileServer (replace your style and ApiKey):  
@@ -50,6 +54,7 @@ The server runs on port 2999 and listens to the following endpoints:
 ### Synchronous endpoints 
 **[GET]**``/mbtiles``:  
 Requires 4 parameters: left, bottom, right, top.  
+Optional parameter: layer.  
 Returns: the mbtiles file
 **Example**: ``http://localhost:2999/mbtiles?left=2.31760654&bottom=48.8243829&right=2.358607&top=48.8513625``
 Will synchronously prepare your mbtiles file and return it in the http response when done. This process can take up to a few minutes.
@@ -58,6 +63,7 @@ Will synchronously prepare your mbtiles file and return it in the http response 
 ### Asynchronous endpoints  
 **[GET]**``/mbtiles/async``:  
 Requires 4 parameters: left, bottom, right, top.  
+Optional parameter: layer.  
 Returns: a json {"token": "your-token"}  
 **Example**: ``http://localhost:2999/mbtiles/async?left=2.31760654&bottom=48.8243829&right=2.358607&top=48.8513625``  
 Will asynchronously launch your mbtiles computation and return a unique token.  
@@ -77,6 +83,7 @@ Retrieve the computed mbtiles file
 
 ## CLI
 The CLI needs 4 parameters to be provided to work: --left, --bottom, --right, --top.  
+It supports one optional parameter: --layer.  
 Use ./run.sh --help for more information.
 
 ## Docker runtime

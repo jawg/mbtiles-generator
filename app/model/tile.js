@@ -15,10 +15,11 @@
  * Tile model
  */
 // Constructor
-function Tile(x, y, z, ext) {
+function Tile(x, y, z, layer, ext) {
   this.x = x;
   this.y = y;
   this.z = z;
+  this.layer = layer || 'default';
   this.ext = ext;
   var tileCountXY = Math.pow(2, z);
   if (this.x >= tileCountXY || this.y >= tileCountXY) {
@@ -27,24 +28,23 @@ function Tile(x, y, z, ext) {
 }
 
 // Static Methods
-Tile.getId = function (x, y, z) {
-  return x + '-' + y + '-' + z + '-' + this.ext;
+Tile.getId = function (x, y, z, layer, ext) {
+  return x + '-' + y + '-' + z + '-' + layer + '-' + ext;
 };
 
 Tile.fromId = function (id) {
-  //id <=> number-number-number-ext
+  //id <=> number-number-number-layer-ext
   var idArray = id.split('-');
-  return new Tile(idArray[0], idArray[1], idArray[2], idArray[3]);
+  return new Tile(idArray[0], idArray[1], idArray[2], idArray[3], idArray[4]);
 };
 
 Tile.copy = function (t) {
-  return new Tile(t.x, t.y, t.z, t.ext);
+  return new Tile(t.x, t.y, t.z, t.layer, t.ext);
 };
-
 
 // Methods
 Tile.prototype.getId = function () {
-  return this.x + '-' + this.y + '-' + this.z + '-' + this.ext;
+  return this.x + '-' + this.y + '-' + this.z + '-' + this.layer + '-' + this.ext;
 };
 
 // Export class

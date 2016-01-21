@@ -36,7 +36,7 @@ router.get('/mbtiles', function (req, res, next) {
   var right = req.query.right;
   var top = req.query.top;
   var bounds = new Bounds(left, bottom, right, top);
-
+  
   // Validate Bounds
   if (!ProjectionUtils.isValidBounds(bounds)) {
     res.set('Content-Type', 'application/json');
@@ -57,15 +57,18 @@ router.get('/mbtiles', function (req, res, next) {
     res.send({"message": msg});
     return;
   }
+
+  // If a layer have been requested, add it to request
+  var layer = req.query.layer;
   
   // Wait for promise to be resolved before returning response (synchronous behaviour)
-  mbTilesGeneratorService.requestMBTilesSync(bounds)
+  mbTilesGeneratorService.requestMBTilesSync(bounds, layer)
       .then(function (result) {
         var content = new Buffer(result, 'binary');
         res.set('Content-Type', 'application/x-sqlite3');
         res.set('Content-Disposition', 'inline; filename="mapsquare.mbtiles"');
         res.send(content);
-
+        
       }, function (result) {
         res.send(result.message);
       });
@@ -101,9 +104,12 @@ router.get('/mbtiles/async', function (req, res, next) {
     res.send({"message": msg});
     return;
   }
+
+  // If a layer have been requested, add it to request
+  var layer = req.query.layer;
   
   // Return token
-  var token = mbTilesGeneratorService.requestMBTiles(bounds);
+  var token = mbTilesGeneratorService.requestMBTiles(bounds, layer);
   res.set('Content-Type', 'application/json');
   res.send({"token": token});
 });
@@ -115,7 +121,7 @@ router.get('/mbtiles/status/:token', function (req, res, next) {
   var token = req.params.token;
   var status = mbTilesStatusService.get(token);
   res.set('Content-Type', 'application/json');
-  if (status && status.status === "generating") {
+  if (status) {
     // If generating, set to 202-ACCEPTED
     res.statusCode = 202;
     res.send(status);

@@ -22,11 +22,16 @@ var extension = Conf.tileServer.endpoint.substr(Conf.tileServer.endpoint.lastInd
 /**
  * OSM Mapper computes an OSM tile request URL from a tile metadata
  * http://tile-server.com/{z}/{x}/{y}.png
+ * OR http://tile-server.com/{layer}/{z}/{x}/{y}.png
  * @param t the requested tile
  * @returns {string}
  */
 var getTileUrl = function(t) {
-  return Conf.tileServer.endpoint.replace('{z}',t.z).replace('{x}', t.x).replace('{y}', t.y);
+  if (Conf.tileServer.endpoint.indexOf('{layer}') == -1) {
+    return Conf.tileServer.endpoint.replace('{z}',t.z).replace('{x}', t.x).replace('{y}', t.y);
+  } else {
+    return Conf.tileServer.endpoint.replace('{layer}',t.layer).replace('{z}',t.z).replace('{x}', t.x).replace('{y}', t.y);  
+  }
 };
 
 /**

@@ -67,9 +67,11 @@ if (process.argv.length > 2) {
     console.log('The minimum zoom level. Will override the default configuration');
     console.log('--max-zoom=z (valid values: 0 to 22 and > min-zoom.)');
     console.log('The maximum zoom level. Will override the default configuration');
+    console.log('--layer=mylayer');
+    console.log('The layer to render.');
     console.log('Example:');
     console.log('./run.sh --left=2.31760654 --bottom=48.8243829 --right=2.358607 --top=48.8513625');
-    console.log('./run.sh --left=2.31760654 --bottom=48.8243829 --right=2.358607 --top=48.8513625 --max-zoom=12');
+    console.log('./run.sh --left=2.31760654 --bottom=48.8243829 --right=2.358607 --top=48.8513625 --max-zoom=12 --layer=roads');
     process.exit();
   }
   if (argv['min-zoom']) {
@@ -82,10 +84,11 @@ if (process.argv.length > 2) {
   var bottom = argv['bottom'];
   var right = argv['right'];
   var top = argv['top'];
+  var layer = argv['layer'];
   var bounds = new Bounds(left, bottom, right, top);
   // Dirty wait for modules to init.
   setTimeout(function() {
-    mbTilesGeneratorService.processMBTile(bounds)
+    mbTilesGeneratorService.requestMBTilesSync(bounds, layer)
         .then(function () {
           process.exit();
         }, function (result) {

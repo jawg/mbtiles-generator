@@ -60,30 +60,34 @@ var initMBTilesRequest = function() {
 /**
  * Returns the future token to retrieve MBTiles once ready.
  * @param bounds the MBTiles bounds
+ * @param layer the requested layer
  * @returns a string value
  */
-var requestMBTiles = function (bounds) {
+var requestMBTiles = function (bounds, layer) {
   var request = initMBTilesRequest();
-  processMBTiles(request, bounds);
+  processMBTiles(request, bounds, layer);
   return request.token;
 };
 
 /**
  * Returns a promise whose resolution will return an mbtile with the requested bounds.
  * @param bounds
+ * @param layer the requested layer
  * @returns {Promise} the MBTile
  */
-var requestMBTilesSync = function (bounds) {
-  var request = initMBTilesRequest()
-  return processMBTiles(request, bounds);
+var requestMBTilesSync = function (bounds, layer) {
+  var request = initMBTilesRequest();
+  return processMBTiles(request, bounds, layer);
 };
 
 /**
  * Returns a promise whose resolution will return an mbtile with the requested bounds.
+ * @param request the mbtiles request
  * @param bounds
+ * @param layer the requested layer
  * @returns {Promise} the MBTile bounds
  */
-var processMBTiles = function (request, bounds) {
+var processMBTiles = function (request, bounds, layer) {
   
   return new Promise(function (resolve, reject) {
     console.log("Processing MBTiles for bounds:" + JSON.stringify(bounds));
@@ -104,12 +108,17 @@ var processMBTiles = function (request, bounds) {
               "format": "png",
               "bounds": bounds.left + ',' + bounds.bottom + ',' + bounds.right + ',' + bounds.top
             };
+
+            if (layer) {
+              metaData.type = "overlay";
+            }
             // Insert metadata into db
             return insertMetadata(request.db, metaData);
+            
           })
           .then(function () {
             // Fetch then store tiles
-            return fetchAndStoreTiles(request.token, bounds, request.db);
+            return fetchAndStoreTiles(request.token, bounds, layer, request.db);
           })
           .then(function () {
             // All tiles have been stored. Close db.
@@ -178,14 +187,16 @@ var insertTile = function (stmt, tile, data, callback) {
 
 /**
  * Process step by step fetch of tiles and parallel store into db
+ * @param token the generation token
  * @param bounds the requested bounds
+ * @param layer the requested layer
  * @param db the database
  * @returns {Promise} a promise resolved when finished.
  */
-var fetchAndStoreTiles = function (token, bounds, db) {
+var fetchAndStoreTiles = function (token, bounds, layer, db) {
   return new Promise(function (resolve, reject) {
     // List tiles
-    var tiles = listTiles(bounds);
+    var tiles = listTiles(bounds, layer);
     console.log(tiles.length + " tiles to process.");
 
     // Prepare steps
@@ -212,9 +223,10 @@ var fetchAndStoreTiles = function (token, bounds, db) {
 /**
  * Make a list of the necessary tiles to compute and embed into the mbtile according to bounds.
  * @param bounds the requested bounds
+ * @param layer the requested layer
  * @returns {Array} the array of tiles
  */
-var listTiles = function (bounds) {
+var listTiles = function (bounds, layer) {
   debug('Listing tiles for bounds' + JSON.stringify(bounds));
   var tiles = [];
   for (var z = Conf.minZoom; z <= Conf.maxZoom; z++) {
@@ -230,7 +242,7 @@ var listTiles = function (bounds) {
 
     for (var x = Math.min(coords1[0], coords2[0]); x <= Math.max(coords1[0], coords2[0]); x++) {
       for (var y = Math.min(coords1[1], coords2[1]); y <= Math.max(coords1[1], coords2[1]); y++) {
-        var t = new Tile(x, y, z, mapper.getExtension());
+        var t = new Tile(x, y, z, layer, mapper.getExtension());
         tiles.push(t);
       }
     }
