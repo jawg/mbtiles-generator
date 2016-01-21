@@ -1,5 +1,7 @@
 # MBTiles generator
 
+[Version: 0.3.0]
+
 A project designed to provide a simple API for generating MBTiles for a bounding box, fetching data from a remote tile-server.
 
 **Warning: this tool can generate heavy load on tile-servers. Use it responsibly.**
